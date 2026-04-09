@@ -13,8 +13,8 @@ Central is a deal flow and portfolio management desktop app built with Electron 
 ## 1. Clone and install
 
 ```bash
-git clone https://github.com/lainy-painter-singh/central
-cd central
+git clone https://github.com/lainy-painter-singh/central-public
+cd central-public
 npm install
 ```
 
@@ -72,7 +72,7 @@ Fill in:
 OPENAI_API_KEY=sk-...
 ```
 
-For Google OAuth, add your credentials to `config/credentials.json` (see `config/credentials.example.json`).
+For Google OAuth, copy `config/credentials.example.json` to `config/credentials.json` and fill in your credentials from the [Google Cloud Console](https://console.cloud.google.com/) (OAuth 2.0 Client ID, Desktop app type). Required scopes: `calendar.readonly`, `gmail.compose`.
 
 ## 4. Run the app
 
