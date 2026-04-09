@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Vibrant gradient background -->
+  <rect width="1024" height="1024" rx="228" fill="url(#bg)"/>
+
+  <!-- Giant bold white C — fills most of the icon -->
+  <text x="512" y="540" text-anchor="middle" dominant-baseline="central"
+        font-family="-apple-system, SF Pro Display, Helvetica Neue, sans-serif"
+        font-size="680" font-weight="800" fill="#ffffff">
+    C
+  </text>
+</svg>

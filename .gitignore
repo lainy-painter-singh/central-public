@@ -1,0 +1,15 @@
+# Personal/firm-specific data files (use *.template.md versions instead)
+PORTFOLIO.md
+CONNECTORS.md
+DEAL_SHARING_FORMAT.md
+
+node_modules/
+dist/
+dist-electron/
+*.db
+config/credentials.json
+.env
+.DS_Store
+release/
+*.db-journal
+build/Central.iconset/

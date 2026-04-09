@@ -1,0 +1,12 @@
+appId: com.craft.central
+productName: Central
+directories:
+  buildResources: resources
+files:
+  - dist
+  - dist-electron
+mac:
+  category: public.app-category.business
+  target:
+    - dmg
+    - zip
