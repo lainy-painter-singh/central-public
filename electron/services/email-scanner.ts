@@ -5,7 +5,7 @@
  * Creates todos when a portfolio company is asking for feedback, review, or approval.
  *
  * Only processes emails from known portfolio/board company domains.
- * Uses OpenAI to classify whether the email genuinely requires Lainy's action.
+ * Uses OpenAI to classify whether the email genuinely requires the investor's action.
  */
 import { google } from 'googleapis'
 import OpenAI from 'openai'
@@ -14,6 +14,7 @@ import path from 'path'
 import os from 'os'
 import { getAuthenticatedClient } from './google-auth'
 import { getDb } from '../db/database'
+import { getUserName, getFirmName } from '../utils/user-settings'
 import { v4 as uuid } from 'uuid'
 
 function getOpenAIKey(): string | null {
@@ -30,12 +31,15 @@ function getOpenAIKey(): string | null {
   return null
 }
 
-const EMAIL_SYSTEM_PROMPT = `You analyze emails sent to a VC investor (Lainy at Craft Ventures) from portfolio companies.
+function getEmailSystemPrompt(): string {
+  const name = getUserName()
+  const firm = getFirmName()
+  return `You analyze emails sent to a VC investor (${name} at ${firm}) from portfolio companies.
 
-Determine if this email requires Lainy to take a SPECIFIC action. Only return an action item if the email is:
+Determine if this email requires ${name} to take a SPECIFIC action. Only return an action item if the email is:
 1. From a portfolio company (board seat or board observer company)
-2. Directly asking Lainy for feedback, review, approval, or a decision on something specific
-3. Something concrete she needs to respond to or act on
+2. Directly asking ${name} for feedback, review, approval, or a decision on something specific
+3. Something concrete they need to respond to or act on
 
 Examples of actionable emails:
 - "Can you review our proposed debt restructuring terms?" → "Review [Company] debt restructuring"
@@ -53,6 +57,7 @@ NOT actionable (return empty):
 
 Return JSON: { "action": string | null, "priority": "high" | "medium", "company": string }
 If no action needed, return: { "action": null, "priority": "medium", "company": "" }`
+}
 
 interface PortfolioEmailDomain {
   domain: string
@@ -199,10 +204,10 @@ export async function scanEmailsForActionItems(): Promise<number> {
         temperature: 0.1,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: EMAIL_SYSTEM_PROMPT },
+          { role: 'system', content: getEmailSystemPrompt() },
           {
             role: 'user',
-            content: `From: ${from}\nTo: ${to}\nSubject: ${subject}\n\nSnippet: ${snippet}\n\nCompany: ${portfolioMatch.companyName}\n\nDoes this email require a specific action from Lainy? Return JSON.`,
+            content: `From: ${from}\nTo: ${to}\nSubject: ${subject}\n\nSnippet: ${snippet}\n\nCompany: ${portfolioMatch.companyName}\n\nDoes this email require a specific action from the investor? Return JSON.`,
           },
         ],
       })

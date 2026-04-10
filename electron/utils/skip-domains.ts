@@ -1,19 +1,17 @@
 /**
  * Domains to skip when matching attendee emails to companies.
  * These are NOT startups/portfolio companies — they're infrastructure
- * around the deal (your firm, other VCs, law firms, banks, expert networks, etc.)
+ * around the deal (VCs, law firms, banks, expert networks, etc.)
+ *
+ * Your firm's domains are added dynamically via FIRM_DOMAINS in .env.
  */
-export const SKIP_DOMAINS = new Set([
+import { getFirmDomains } from './user-settings'
+
+const STATIC_SKIP_DOMAINS = new Set([
   // Common email providers
   'gmail.com', 'googlemail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
   'icloud.com', 'me.com', 'mac.com', 'aol.com', 'protonmail.com',
   'live.com', 'msn.com',
-
-  // Own firm
-  'craftventures.com', 'craft.co',
-  'sacks.com',                    // David Sacks (personal)
-  'dayton.co',                    // Dayton (Craft-affiliated)
-  'ushg.com',                     // Union Square Hospitality Group (not a startup)
 
   // VC / PE / Growth equity funds
   'capitalg.com',             // CapitalG (Alphabet)
@@ -140,8 +138,17 @@ export const SKIP_DOMAINS = new Set([
   'cumc.columbia.edu',
   'mayo.edu',
 
-  // Real estate / consulting / not target companies
-  'tamarisc.com',             // Tamarisc (consulting/advisory)
-  'linus.health',             // Linus Health (not in scope)
-  'workwise.care',            // Workwise (separate from deals)
 ])
+
+/**
+ * Returns the full set of domains to skip, including your firm's domains
+ * from FIRM_DOMAINS in .env. Use this instead of SKIP_DOMAINS directly.
+ */
+export function getSkipDomains(): Set<string> {
+  const combined = new Set(STATIC_SKIP_DOMAINS)
+  for (const d of getFirmDomains()) combined.add(d)
+  return combined
+}
+
+/** @deprecated Use getSkipDomains() instead */
+export const SKIP_DOMAINS = STATIC_SKIP_DOMAINS

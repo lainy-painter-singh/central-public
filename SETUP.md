@@ -9,6 +9,7 @@ Central is a deal flow and portfolio management desktop app built with Electron 
 - A Google account (for Calendar and Gmail integration)
 - An OpenAI API key (for deal sharing summaries)
 - A Granola account (optional, for meeting notes)
+- Obsidian (optional, for meeting notes — the app also works with Granola alone or neither)
 
 ## 1. Clone and install
 
@@ -66,11 +67,17 @@ Create a `.env` file in the root:
 cp .env.example .env
 ```
 
-Fill in:
+Fill in your values:
 
 ```
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=sk-...        # Required
+USER_NAME=Alice              # Your first name (used in AI prompts)
+FIRM_NAME=Acme Capital       # Your firm name
+FIRM_DOMAINS=acmecapital.com # Your firm's email domain(s), comma-separated
+FIRM_PEOPLE=alice,bob,carol  # Your colleagues' names, comma-separated (lowercase)
 ```
+
+`USER_NAME`, `FIRM_NAME`, `FIRM_DOMAINS`, and `FIRM_PEOPLE` keep the AI prompts and contact filtering generic to your firm — without them, OpenAI calls will use placeholder values ("the investor", "the firm").
 
 For Google OAuth, copy `config/credentials.example.json` to `config/credentials.json` and fill in your credentials from the [Google Cloud Console](https://console.cloud.google.com/) (OAuth 2.0 Client ID, Desktop app type). Required scopes: `calendar.readonly`, `gmail.compose`.
 

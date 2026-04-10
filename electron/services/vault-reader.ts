@@ -108,7 +108,7 @@ export function findVaultMeetings(companyName: string): VaultMeeting[] {
       const companyMatch = searchTerms.some(term => fmCompany.includes(term))
 
       // If no filename or frontmatter match, check first 2000 chars of body
-      // This catches files like "Lainy (Craft) <> Marcus (Wispr)"
+      // This catches files like "Alice (Acme) <> Marcus (Wispr)"
       let contentMatch = false
       if (!filenameMatches && !companyMatch) {
         const snippet = body.slice(0, 2000).toLowerCase()

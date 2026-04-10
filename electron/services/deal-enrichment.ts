@@ -11,6 +11,7 @@ import { google } from 'googleapis'
 import { getDb } from '../db/database'
 import { getAuthenticatedClient, isGoogleConnected } from './google-auth'
 import { findVaultMeetings } from './vault-reader'
+import { isFirmEmail } from '../utils/user-settings'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -91,7 +92,7 @@ export async function enrichDeal(companyId: string, companyName: string): Promis
 
   // Pick the best primary contact (first non-craft email found)
   const primaryContact = result.contacts.find(c =>
-    c.email && !c.email.includes('craftventures.com') && !c.email.includes('craft.co')
+    c.email && !isFirmEmail(c.email)
   )
   if (primaryContact) {
     result.contactName = primaryContact.name
@@ -189,7 +190,7 @@ function findContactsFromCalendar(companyName: string): Contact[] {
       for (const a of attendees) {
         if (!a.email) continue
         // Skip our own domain and common service emails
-        if (a.email.includes('craftventures.com') || a.email.includes('craft.co')) continue
+        if (isFirmEmail(a.email)) continue
         if (a.email.includes('calendar.google.com') || a.email.includes('resource.calendar')) continue
         if (!contacts.some(c => c.email === a.email)) {
           contacts.push({
@@ -231,7 +232,7 @@ function findContactsFromMeetings(companyName: string): Contact[] {
       for (const a of attendees) {
         const email = a.email
         if (!email) continue
-        if (email.includes('craftventures.com') || email.includes('craft.co')) continue
+        if (isFirmEmail(email)) continue
         if (!contacts.some(c => c.email === email)) {
           contacts.push({
             name: a.name || email.split('@')[0],
@@ -335,7 +336,7 @@ async function searchGmailForCompany(
             const parsed = parseEmailHeader(header.value || '')
             for (const p of parsed) {
               if (!p.email) continue
-              if (p.email.includes('craftventures.com') || p.email.includes('craft.co')) continue
+              if (isFirmEmail(p.email)) continue
               if (!contacts.some(c => c.email === p.email) &&
                   !knownContacts.some(c => c.email === p.email)) {
                 contacts.push(p)

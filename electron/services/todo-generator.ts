@@ -4,7 +4,8 @@ import path from 'path'
 import os from 'os'
 import { getDb } from '../db/database'
 import { isPortfolioCompany } from '../utils/portfolio'
-import { SKIP_DOMAINS } from '../utils/skip-domains'
+import { getSkipDomains } from '../utils/skip-domains'
+import { getUserName, getFirmName } from '../utils/user-settings'
 import { v4 as uuid } from 'uuid'
 
 interface ExtractedTodo {
@@ -52,29 +53,32 @@ function getOpenAIKey(): string | null {
   return null
 }
 
-const SYSTEM_PROMPT = `You extract action items from a VC investor's meeting notes. Be EXTREMELY conservative. 95%+ of meetings should produce ZERO action items. Return an empty array unless you are highly confident.
+function getSystemPrompt(): string {
+  const name = getUserName()
+  const firm = getFirmName()
+  return `You extract action items from a VC investor's meeting notes. Be EXTREMELY conservative. 95%+ of meetings should produce ZERO action items. Return an empty array unless you are highly confident.
 
 ONLY extract a todo if ALL of these are true:
-1. Lainy used VERBATIM commitment language in the transcript: "I will...", "I'll...", "Let me...", "I'll send...", "I'll email..."
-2. You can point to the EXACT quote where she made the commitment
+1. ${name} used VERBATIM commitment language in the transcript: "I will...", "I'll...", "Let me...", "I'll send...", "I'll email..."
+2. You can point to the EXACT quote where they made the commitment
 3. The action is a specific, concrete, one-time task with a clear deliverable
-4. It is HER personal responsibility, not the company's, a colleague's, or a team task
+4. It is THEIR personal responsibility, not the company's, a colleague's, or a team task
 
 NEVER extract any of these — they are the most common false positives:
-- Introductions: NEVER extract intros unless Lainy said the EXACT words "I will introduce" or "I'll make that intro" AND named BOTH specific people. If notes just mention people who could be connected, that is NOT a commitment.
+- Introductions: NEVER extract intros unless ${name} said the EXACT words "I will introduce" or "I'll make that intro" AND named BOTH specific people. If notes just mention people who could be connected, that is NOT a commitment.
 - Connecting people: "Connect X with Y", "Put X in touch with Y", "Reintroduce X to Y" — these are almost always brainstorming, not commitments. Skip them.
-- Internal Craft tasks: Anything involving Craft colleagues (Aaron, Sara Blanchard, Kevin, Jeff, etc.) is internal and should NEVER be extracted.
-- Things discussed: If the notes describe a topic that was discussed (hiring, intros, strategy), that does NOT mean Lainy committed to act on it.
-- Advice given: Suggestions or recommendations Lainy offered are not her action items.
+- Internal ${firm} tasks: Anything involving ${firm} colleagues is internal and should NEVER be extracted.
+- Things discussed: If the notes describe a topic that was discussed (hiring, intros, strategy), that does NOT mean ${name} committed to act on it.
+- Advice given: Suggestions or recommendations ${name} offered are not their action items.
 - Vague follow-ups: "follow up", "circle back", "stay in touch", "keep an eye on"
 - Company tasks: Things the founder/company will do
 - Expert/research calls: Never extract from AlphaSights, Tegus, etc.
-- Board meeting items: These belong to the company, not Lainy
-- Reviews: Unless Lainy specifically said "I will review [specific document]"
+- Board meeting items: These belong to the company, not ${name}
+- Reviews: Unless ${name} specifically said "I will review [specific document]"
 
 VALID (notice these require VERBATIM commitment in the transcript):
-- "Send the competitive analysis to [specific founder]" — she literally said "I'll send it over"
-- "Give feedback on the term sheet by Friday" — she was directly asked and said "yes, I'll get you feedback"
+- "Send the competitive analysis to [specific founder]" — they literally said "I'll send it over"
+- "Give feedback on the term sheet by Friday" — they were directly asked and said "yes, I'll get you feedback"
 
 INVALID — DO NOT extract:
 - "Make intro: X to Y" ← intros discussed in conversation, not explicitly committed
@@ -83,15 +87,16 @@ INVALID — DO NOT extract:
 - "Share candidates" ← topic discussed, not a commitment to source candidates
 - "Sign up for enterprise plan" ← product discussed
 - "Schedule check-ins" ← vague/ongoing
-- Any action involving Craft Ventures team members ← internal, not a todo
+- Any action involving ${firm} team members ← internal, not a todo
 
 CRITICAL: When in doubt, return an empty array. The user adds items manually and STRONGLY prefers no false positives. An empty result is the EXPECTED and CORRECT output for nearly every meeting.
 
-Every todo MUST have a company name (the startup, NEVER "Craft Ventures"). No company = skip.
+Every todo MUST have a company name (the startup, NEVER "${firm}"). No company = skip.
 
 Return JSON: { "todos": [...] }
 Each todo: { "title": string, "company": string, "priority": "high"|"medium"|"low", "deadline": string|null, "context": string }
 Default to { "todos": [] }.`
+}
 
 export async function extractTodosFromMeeting(
   meetingId: string,
@@ -132,7 +137,7 @@ export async function extractTodosFromMeeting(
       temperature: 0.1,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: getSystemPrompt() },
         {
           role: 'user',
           content: `Meeting type: ${meetingType}\nMeeting: "${meetingTitle}"\n\nContent:\n${content.slice(0, 8000)}\n\nExtract action items. Return JSON: { "todos": [...] }`,
@@ -348,7 +353,7 @@ export function detectPitchMeetingTodos(): number {
         const atIdx = email.lastIndexOf('@')
         if (atIdx > 0) {
           const domain = email.slice(atIdx + 1).toLowerCase().trim()
-          if (domain && !SKIP_DOMAINS.has(domain)) {
+          if (domain && !getSkipDomains().has(domain)) {
             hasExternal = true
             if (!prospectDomain) prospectDomain = domain
           }

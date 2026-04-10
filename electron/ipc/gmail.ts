@@ -2,6 +2,7 @@ import { IpcMain } from 'electron'
 import { isGoogleConnected } from '../services/google-auth'
 import { createGmailDraft } from '../services/gmail'
 import { getDb } from '../db/database'
+import { getUserName, getFirmName } from '../utils/user-settings'
 import OpenAI from 'openai'
 import fs from 'fs'
 import path from 'path'
@@ -21,9 +22,12 @@ function getOpenAIKey(): string | null {
   return null
 }
 
-const PASS_NOTE_SYSTEM = `You write VC investment pass notes (rejection emails) to founders. These are brief emails (3-5 short paragraphs, ~75-175 words) that respect the founder's time and leave the relationship intact.
+function getPassNoteSystem(): string {
+  const name = getUserName()
+  const firm = getFirmName()
+  return `You write VC investment pass notes (rejection emails) to founders. These are brief emails (3-5 short paragraphs, ~75-175 words) that respect the founder's time and leave the relationship intact.
 
-You are writing as Lainy at Craft Ventures.
+You are writing as ${name} at ${firm}.
 
 Tone and style:
 - Warm but direct. Do not hedge or bury the pass decision.
@@ -56,6 +60,7 @@ Hi Aris,
 Thank you for walking me through Solstice. Going from zero to $1.6M ARR in six months with three top-10 pharma companies is impressive execution. Cutting review cycles from 3+ rounds to 1.2 clearly resonates.
 After thinking it through, we've decided to pass on this round. I'm not sure this will be a winner take all market with venture scale returns versus support a few large, profitable AI-driven agencies. I could be wrong here, but wanted to be transparent about the hesitation today.
 Wishing you the best with the raise.`
+}
 
 function fallbackTemplate(companyName: string, contactName: string, reason: string): string {
   const firstName = contactName.split(' ')[0] || contactName
@@ -123,7 +128,7 @@ export function registerGmailHandlers(ipcMain: IpcMain) {
           model: 'gpt-4o-mini',
           temperature: 0.7,
           messages: [
-            { role: 'system', content: PASS_NOTE_SYSTEM },
+            { role: 'system', content: getPassNoteSystem() },
             {
               role: 'user',
               content: `Write a pass email to ${contactName} at ${companyName}.${reason ? `\nReason for passing: ${reason}` : ''}${meetingContext}`,

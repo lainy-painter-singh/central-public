@@ -11,7 +11,8 @@
  *   4. Fall back to capitalizing the domain root (e.g. "supio.com" → "Supio")
  */
 import { getDb } from '../db/database'
-import { SKIP_DOMAINS } from '../utils/skip-domains'
+import { getSkipDomains } from '../utils/skip-domains'
+import { getFirmPeople, getFirmName } from '../utils/user-settings'
 import { isPortfolioCompanyName } from '../utils/portfolio-holdings'
 import { v4 as uuid } from 'uuid'
 
@@ -38,19 +39,10 @@ const SKIP_TITLE_PATTERNS = [
   /deal\s*review/i,              // Internal deal review
 ]
 
-/** Known Craft people — used to filter personal names from titles */
-const CRAFT_PEOPLE = new Set([
-  'lainy', 'lainy painter', 'lainy painter singh',
-  'kevin', 'kevin gabura',
-  'taylor', 'taylor durand',
-  'david', 'david sacks',
-  'jeff', 'jeff fluhr',
-  'bryan', 'bryan rosenblatt',
-  'cassie', 'cassie leemans',
-  'alec', 'teddy', 'zach', 'ryan', 'crissy', 'josh',
-  'alex', 'farzad', 'greg', 'bmur', 'michael', 'shiraz',
-  'sarah', 'doug', 'firdaus',
-])
+/** Your firm's people — loaded from FIRM_PEOPLE in .env */
+function getFirmPeopleSet(): Set<string> {
+  return getFirmPeople()
+}
 
 /**
  * Try to extract the prospect company name from a meeting title,
@@ -122,8 +114,8 @@ function extractCompanyName(title: string, prospectDomain: string): string {
   }
 
   // Strategy 3: Look for "(CompanyName)" parenthetical patterns
-  // "SiftMed (Holly) & CRAFT Ventures (Lainy)" → extract "SiftMed"
-  // "Lainy (Craft) <> Apoorva (ChartR)" → extract "ChartR"
+  // "SiftMed (Holly) & Acme Ventures (Alice)" → extract "SiftMed"
+  // "Alice (Acme) <> Apoorva (ChartR)" → extract "ChartR"
   const parenParts = [...title.matchAll(/(\S+(?:\s+\S+)*?)\s*\(([^)]+)\)/g)]
   for (const match of parenParts) {
     const beforeParen = match[1].trim()
@@ -189,29 +181,30 @@ function extractCompanyName(title: string, prospectDomain: string): string {
   return domainToCompanyName(prospectDomain)
 }
 
-/** Check if a party string refers to Craft */
+/** Check if a party string refers to your firm */
 function isCraftParty(party: string): boolean {
   const lower = party.toLowerCase()
+  const firm = getFirmName().toLowerCase()
+  const firmPeople = getFirmPeopleSet()
   return (
-    /craft\s*ventures?/i.test(party) ||
-    /\bcraft\b/i.test(party) ||
-    CRAFT_PEOPLE.has(lower) ||
-    // "Lainy (Craft)" pattern
-    /\(craft\)/i.test(party)
+    lower.includes(firm) ||
+    firmPeople.has(lower) ||
+    /\(firm\)/i.test(party)
   )
 }
 
-/** Check if a string is a Craft-related name */
+/** Check if a string is a firm-related name */
 function isCraftName(s: string): boolean {
   const lower = s.toLowerCase().trim()
-  return CRAFT_PEOPLE.has(lower) || /craft/i.test(lower)
+  const firm = getFirmName().toLowerCase()
+  return getFirmPeopleSet().has(lower) || lower.includes(firm)
 }
 
 /** Check if a string looks like a person's name (not a company) */
 function isPersonName(s: string): boolean {
   const lower = s.toLowerCase().trim()
-  // Already known Craft person
-  if (CRAFT_PEOPLE.has(lower)) return true
+  // Already known firm person
+  if (getFirmPeopleSet().has(lower)) return true
   // Single word that's a common first name pattern (lowercase, short)
   if (!s.includes(' ') && s.length < 10 && /^[A-Z][a-z]+$/.test(s.trim())) return true
   // "FirstName LastName" pattern with no company indicators
@@ -223,12 +216,19 @@ function isPersonName(s: string): boolean {
 
 /** Clean a party string to extract the company name */
 function cleanPartyName(party: string, domainRoot: string): string | null {
+  const firm = getFirmName()
+  const firmEscaped = firm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   let cleaned = party
-    .replace(/\(Craft\)/gi, '')
-    .replace(/Craft\s*Ventures?/gi, '')
-    .replace(/\(Lainy\)/gi, '')
-    .replace(/\(Kevin\)/gi, '')
+    .replace(new RegExp(`\\(${firmEscaped}\\)`, 'gi'), '')
+    .replace(new RegExp(firmEscaped, 'gi'), '')
     .trim()
+  // Also strip parenthetical firm people names e.g. "(Alice)"
+  for (const person of getFirmPeopleSet()) {
+    if (!person.includes(' ')) {
+      const personEscaped = person.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      cleaned = cleaned.replace(new RegExp(`\\(${personEscaped}\\)`, 'gi'), '').trim()
+    }
+  }
 
   if (!cleaned || isCraftName(cleaned)) return null
 
@@ -303,7 +303,7 @@ function extractProspectAttendees(attendeesJson: string | null): { domain: strin
       if (atIdx <= 0) continue
 
       const domain = email.slice(atIdx + 1).trim()
-      if (!domain || SKIP_DOMAINS.has(domain)) continue
+      if (!domain || getSkipDomains().has(domain)) continue
       if (seenDomains.has(domain)) continue
       seenDomains.add(domain)
 
